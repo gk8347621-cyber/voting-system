@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Voting System</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1e1e2e;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 20px;
+    }
+
+    /* ── Page switcher ── */
+    .page { display: none; width: 100%; justify-content: center; }
+    .page.active { display: flex; }
+
+    /* ── Shared card ── */
+    .card {
+      background: #2a2a3e;
+      border: 1px solid #3f3f5a;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      padding: 24px 28px;
+      text-align: center;
+    }
+    .header.admin-hdr { background: linear-gradient(135deg, #dc2626, #991b1b); }
+    .header h1 { color: #fff; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+    .header p  { color: rgba(255,255,255,0.7); font-size: 0.8rem; margin-top: 4px; }
+
+    .body { padding: 28px; }
+
+    label {
+      display: block;
+      font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: #94a3b8; margin-bottom: 6px;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 12px 14px;
+      background: #12121f; border: 1px solid #3f3f5a;
+      border-radius: 8px; color: #e2e8f0;
+      font-size: 1rem; outline: none;
+      transition: border-color 0.2s; margin-bottom: 14px;
+    }
+    input:focus { border-color: #7c3aed; }
+
+    .section-title {
+      font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: #94a3b8; margin: 22px 0 10px;
+    }
+
+    .candidates { display: flex; flex-direction: column; gap: 10px; }
+
+    .vote-btn {
+      width: 100%; padding: 12px;
+      background: #7c3aed; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+    }
+    .vote-btn:hover  { background: #6d28d9; }
+    .vote-btn:active { transform: scale(0.98); }
+
+    .results-btn {
+      width: 100%; margin-top: 18px; padding: 13px;
+      background: #10b981; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+    }
+    .results-btn:hover  { background: #059669; }
+    .results-btn:active { transform: scale(0.98); }
+
+    .admin-link-btn {
+      width: 100%; margin-top: 10px; padding: 10px;
+      background: transparent; color: #94a3b8;
+      border: 1px solid #3f3f5a; border-radius: 8px;
+      font-size: 0.85rem; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .admin-link-btn:hover { border-color: #dc2626; color: #dc2626; }
+
+    .footer {
+      text-align: center; padding: 14px;
+      font-size: 0.75rem; color: #94a3b8;
+      border-top: 1px solid #3f3f5a;
+    }
+
+    /* ── Admin panel ── */
+    .admin-card { max-width: 680px; }
+
+    .admin-tabs {
+      display: flex; border-bottom: 1px solid #3f3f5a;
+      padding: 0 28px; gap: 4px;
+    }
+    .tab {
+      padding: 12px 16px; font-size: 0.85rem; font-weight: 600;
+      color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s; margin-bottom: -1px;
+    }
+    .tab.active { color: #dc2626; border-bottom-color: #dc2626; }
+
+    .tab-content { display: none; padding: 24px 28px; }
+    .tab-content.active { display: block; }
+
+    /* Stats row */
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-box {
+      background: #12121f; border: 1px solid #3f3f5a;
+      border-radius: 10px; padding: 16px; text-align: center;
+    }
+    .stat-box .num { font-size: 1.8rem; font-weight: 700; color: #e2e8f0; }
+    .stat-box .lbl { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+    /* Candidate result rows */
+    .admin-result-row {
+      display: flex; align-items: center; gap: 12px;
+      background: #12121f; border: 1px solid #3f3f5a;
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+    }
+    .admin-result-row .cname { width: 90px; font-weight: 600; color: #e2e8f0; }
+    .bar-wrap { flex: 1; background: #2a2a3e; border-radius: 99px; height: 10px; overflow: hidden; }
+    .bar { height: 100%; background: #7c3aed; border-radius: 99px; transition: width 0.6s ease; }
+    .bar.lead { background: #dc2626; }
+    .pct { width: 42px; text-align: right; font-size: 0.8rem; color: #94a3b8; }
+    .vcount { width: 24px; text-align: right; font-size: 0.85rem; color: #e2e8f0; font-weight: 600; }
+
+    /* Voter log table */
+    .voter-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .voter-table th {
+      text-align: left; padding: 10px 12px;
+      font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase;
+      color: #94a3b8; border-bottom: 1px solid #3f3f5a;
+    }
+    .voter-table td { padding: 10px 12px; color: #e2e8f0; border-bottom: 1px solid #1e1e2e; }
+    .voter-table tr:hover td { background: #12121f; }
+    .badge {
+      display: inline-block; padding: 2px 10px;
+      border-radius: 99px; font-size: 0.75rem; font-weight: 600;
+    }
+    .badge.voted    { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge.pending  { background: rgba(148,163,184,0.1); color: #94a3b8; }
+
+    /* Manage tab */
+    .manage-row {
+      display: flex; gap: 10px; margin-bottom: 10px;
+    }
+    .manage-row input { margin-bottom: 0; flex: 1; }
+    .icon-btn {
+      padding: 10px 14px; border: none; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .icon-btn.add { background: #7c3aed; color: #fff; }
+    .icon-btn.add:hover { background: #6d28d9; }
+    .icon-btn.del { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .icon-btn.del:hover { background: rgba(239,68,68,0.3); }
+    .icon-btn.reset { background: rgba(239,68,68,0.15); color: #ef4444; width: 100%; padding: 12px; margin-top: 8px; }
+    .icon-btn.reset:hover { background: rgba(239,68,68,0.3); }
+
+    .candidate-chip {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #12121f; border: 1px solid #3f3f5a;
+      border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;
+      color: #e2e8f0; font-size: 0.9rem;
+    }
+    .chip-del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1rem; }
+
+    /* Login */
+    .login-btn {
+      width: 100%; padding: 13px; background: #dc2626; color: #fff;
+      border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .login-btn:hover { background: #b91c1c; }
+    .back-btn {
+      width: 100%; margin-top: 10px; padding: 10px;
+      background: transparent; color: #94a3b8;
+      border: 1px solid #3f3f5a; border-radius: 8px;
+      font-size: 0.85rem; cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .back-btn:hover { border-color: #7c3aed; color: #7c3aed; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 30px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #2a2a3e; border: 1px solid #3f3f5a;
+      color: #e2e8f0; padding: 12px 24px;
+      border-radius: 10px; font-size: 0.9rem;
+      opacity: 0; transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none; white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 999;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: #10b981; color: #10b981; }
+    #toast.error   { border-color: #ef4444; color: #ef4444; }
+    #toast.warn    { border-color: #f59e0b; color: #f59e0b; }
+
+    .winner-box {
+      margin-top: 18px; padding: 14px;
+      background: rgba(16,185,129,0.1); border: 1px solid #10b981;
+      border-radius: 10px; text-align: center;
+      color: #10b981; font-weight: 700; font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ VOTER PAGE ══════════════════════════════════════════ -->
+<div class="page active" id="voterPage">
+  <div class="card">
+    <div class="header">
+      <h1>🗳 Voting System</h1>
+      <p>Secure • Transparent • Fair</p>
+    </div>
+    <div class="body">
+      <label for="voterId">Voter ID</label>
+      <input type="text" id="voterId" placeholder="Enter your voter ID (e.g. 01)" />
+      <div class="section-title">Cast Your Vote</div>
+      <div class="candidates" id="candidateList"></div>
+      <button class="admin-link-btn" onclick="showPage('loginPage')">� Admin Panel</button>
+    </div>
+    <div class="footer">Secure • Transparent • Fair</div>
+  </div>
+</div>
+
+<!-- ══ ADMIN LOGIN PAGE ════════════════════════════════════ -->
+<div class="page" id="loginPage">
+  <div class="card">
+    <div class="header admin-hdr">
+      <h1>🔐 Admin Login</h1>
+      <p>Restricted access</p>
+    </div>
+    <div class="body">
+      <label for="adminUser">Username</label>
+      <input type="text" id="adminUser" placeholder="admin" />
+      <label for="adminPass">Password</label>
+      <input type="password" id="adminPass" placeholder="••••••••" />
+      <button class="login-btn" onclick="adminLogin()">Login</button>
+      <button class="back-btn" onclick="showPage('voterPage')">← Back to Voting</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN PANEL PAGE ════════════════════════════════════ -->
+<div class="page" id="adminPage">
+  <div class="card admin-card">
+    <div class="header admin-hdr">
+      <h1>⚙️ Admin Panel</h1>
+      <p>Election management dashboard</p>
+    </div>
+
+    <div class="admin-tabs">
+      <div class="tab active" onclick="switchTab('tabOverview', this)">Overview</div>
+      <div class="tab" onclick="switchTab('tabVoters', this)">Voter Log</div>
+      <div class="tab" onclick="switchTab('tabManage', this)">Manage</div>
+    </div>
+
+    <!-- Overview tab -->
+    <div class="tab-content active" id="tabOverview">
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="num" id="statTotal">0</div>
+          <div class="lbl">Total Votes</div>
+        </div>
+        <div class="stat-box">
+          <div class="num" id="statVoters">0</div>
+          <div class="lbl">Voters Cast</div>
+        </div>
+        <div class="stat-box">
+          <div class="num" id="statPending">0</div>
+          <div class="lbl">Pending</div>
+        </div>
+      </div>
+      <div id="adminResultRows"></div>
+    </div>
+
+    <!-- Voter log tab -->
+    <div class="tab-content" id="tabVoters">
+      <table class="voter-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Name</th><th>Status</th><th>Voted For</th>
+          </tr>
+        </thead>
+        <tbody id="voterLogBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Manage tab -->
+    <div class="tab-content" id="tabManage">
+      <div class="section-title">Add Candidate</div>
+      <div class="manage-row">
+        <input type="text" id="newCandidate" placeholder="Candidate name" />
+        <button class="icon-btn add" onclick="addCandidate()">+ Add</button>
+      </div>
+      <div id="candidateChips"></div>
+
+      <div class="section-title" style="margin-top:24px">Add Voter</div>
+      <div class="manage-row">
+        <input type="text" id="newVoterId" placeholder="Voter ID (e.g. 16)" style="max-width:120px"/>
+        <input type="text" id="newVoterName" placeholder="Voter name" />
+        <button class="icon-btn add" onclick="addVoter()">+ Add</button>
+      </div>
+
+      <button class="icon-btn reset" onclick="resetElection()">🔄 Reset All Votes</button>
+
+      <div class="section-title" style="margin-top:24px">Change Password</div>
+      <input type="password" id="curPass"  placeholder="Current password" />
+      <input type="password" id="newPass"  placeholder="New password" />
+      <input type="password" id="confPass" placeholder="Confirm new password" />
+      <button class="icon-btn add" style="width:100%;padding:12px" onclick="changePassword()">🔑 Update Password</button>
+
+      <button class="back-btn" style="margin-top:10px" onclick="adminLogout()">← Logout</button>
+    </div>
+
+  </div>
+</div>
+
+
+
+<div id="toast"></div>
+
+<script>
+  // ── Default data ───────────────────────────────────────
+  const DEFAULT_CANDIDATES = { Manav: 0, Arjun: 0, Harshal: 0, Niraj: 0 };
+  const DEFAULT_VOTERS = {
+    "23512100128":"Prathamesh Kamble","24512100127":"Karan","24512100124":"Mangesh More","23512100125":"Vinay Bagul","23512100114":"Gopal Kale",
+    "23512100136":"Krushna Janjal","23512100117":"Harshal Sonewane","23512100151":"Onkar Pawar","23512100111":"Ankita Patil","23512100112":"Manoj Surse",
+    "24512100123":"Nishat Surse","23512100113":"Suraj Dhamne","23512100118":"Avinash Sonewane","23512100119":"Saakshi Damle","23512100120":"Uzair Shaikh",
+    "23512100121":"Aarti TAmbe","23512100122":"Niraj Gaikwad","23512100123":"Anjani Kharat","23512100124":"Vedant Pawar","23512100149":"Manav Raut"
+  };
+
+  // ── Persistence helpers ────────────────────────────────
+  function loadState() {
+    try {
+      candidates = JSON.parse(localStorage.getItem("vs_candidates")) || JSON.parse(JSON.stringify(DEFAULT_CANDIDATES));
+      voterList  = JSON.parse(localStorage.getItem("vs_voterList"))  || JSON.parse(JSON.stringify(DEFAULT_VOTERS));
+      voteLog    = JSON.parse(localStorage.getItem("vs_voteLog"))    || {};
+      voted      = new Set(JSON.parse(localStorage.getItem("vs_voted")) || []);
+      ADMIN_PASS = localStorage.getItem("vs_adminPass") || "admin123";
+    } catch(e) {
+      candidates = JSON.parse(JSON.stringify(DEFAULT_CANDIDATES));
+      voterList  = JSON.parse(JSON.stringify(DEFAULT_VOTERS));
+      voteLog    = {};
+      voted      = new Set();
+      ADMIN_PASS = "admin123";
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem("vs_candidates", JSON.stringify(candidates));
+    localStorage.setItem("vs_voterList",  JSON.stringify(voterList));
+    localStorage.setItem("vs_voteLog",    JSON.stringify(voteLog));
+    localStorage.setItem("vs_voted",      JSON.stringify([...voted]));
+    localStorage.setItem("vs_adminPass",  ADMIN_PASS);
+  }
+
+  // ── State ──────────────────────────────────────────────
+  let candidates, voterList, voteLog, voted;
+  const ADMIN_USER = "admin";
+  let   ADMIN_PASS;
+
+  loadState();
+
+  // ── Page routing ───────────────────────────────────────
+  function showPage(id) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+  }
+
+  // ── Admin auth ─────────────────────────────────────────
+  function adminLogin() {
+    const u = document.getElementById("adminUser").value.trim();
+    const p = document.getElementById("adminPass").value;
+    if (u === ADMIN_USER && p === ADMIN_PASS) {
+      document.getElementById("adminUser").value = "";
+      document.getElementById("adminPass").value = "";
+      refreshAdmin();
+      showPage("adminPage");
+    } else {
+      toast("Invalid credentials.", "error");
+    }
+  }
+
+  function adminLogout() {
+    showPage("voterPage");
+  }
+
+  // ── Voter page ─────────────────────────────────────────
+  function buildCandidateButtons() {
+    const list = document.getElementById("candidateList");
+    list.innerHTML = "";
+    Object.keys(candidates).forEach(name => {
+      const btn = document.createElement("button");
+      btn.className = "vote-btn";
+      btn.textContent = `Vote for  ${name}`;
+      btn.onclick = () => castVote(name);
+      list.appendChild(btn);
+    });
+  }
+
+  function castVote(candidate) {
+    const id = document.getElementById("voterId").value.trim();
+    if (!voterList[id])  return toast("Voter ID not registered.", "error");
+    if (voted.has(id))   return toast(`${voterList[id]} has already voted.`, "warn");
+    candidates[candidate]++;
+    voted.add(id);
+    voteLog[id] = candidate;
+    saveState();
+    document.getElementById("voterId").value = "";
+    toast(`✔  ${voterList[id]} voted for ${candidate}.`, "success");
+  }
+
+
+
+  // ── Admin refresh ──────────────────────────────────────
+  function refreshAdmin() {
+    const total   = Object.values(candidates).reduce((a,b) => a+b, 0);
+    const pending = Object.keys(voterList).length - voted.size;
+    document.getElementById("statTotal").textContent   = total;
+    document.getElementById("statVoters").textContent  = voted.size;
+    document.getElementById("statPending").textContent = pending;
+
+    // result bars
+    const maxVotes = Math.max(...Object.values(candidates), 1);
+    document.getElementById("adminResultRows").innerHTML =
+      Object.entries(candidates).map(([name, votes]) => {
+        const pct = total ? (votes/total*100).toFixed(1) : 0;
+        const lead = votes === maxVotes && total > 0;
+        return `<div class="admin-result-row">
+          <span class="cname">${name}</span>
+          <div class="bar-wrap"><div class="bar ${lead?'lead':''}" style="width:${pct}%"></div></div>
+          <span class="pct">${pct}%</span>
+          <span class="vcount">${votes}</span>
+        </div>`;
+      }).join("");
+
+    // voter log
+    document.getElementById("voterLogBody").innerHTML =
+      Object.entries(voterList).map(([id, name]) => {
+        const hasVoted = voted.has(id);
+        return `<tr>
+          <td>${id}</td>
+          <td>${name}</td>
+          <td><span class="badge ${hasVoted?'voted':'pending'}">${hasVoted?'Voted':'Pending'}</span></td>
+          <td>${voteLog[id] || '—'}</td>
+        </tr>`;
+      }).join("");
+
+    // candidate chips
+    document.getElementById("candidateChips").innerHTML =
+      Object.keys(candidates).map(name => `
+        <div class="candidate-chip">
+          <span>${name}</span>
+          <button class="chip-del" onclick="removeCandidate('${name}')">✕</button>
+        </div>`).join("");
+  }
+
+  // ── Tab switching ──────────────────────────────────────
+  function switchTab(id, el) {
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    el.classList.add("active");
+    if (id === "tabOverview" || id === "tabVoters") refreshAdmin();
+  }
+
+  // ── Manage actions ─────────────────────────────────────
+  function addCandidate() {
+    const name = document.getElementById("newCandidate").value.trim();
+    if (!name) return toast("Enter a candidate name.", "warn");
+    if (candidates[name] !== undefined) return toast("Candidate already exists.", "warn");
+    candidates[name] = 0;
+    document.getElementById("newCandidate").value = "";
+    buildCandidateButtons();
+    refreshAdmin();
+    saveState();
+    toast(`${name} added as candidate.`, "success");
+  }
+
+  function removeCandidate(name) {
+    if (Object.keys(candidates).length <= 2) return toast("Need at least 2 candidates.", "warn");
+    delete candidates[name];
+    buildCandidateButtons();
+    refreshAdmin();
+    saveState();
+    toast(`${name} removed.`, "warn");
+  }
+
+  function addVoter() {
+    const id   = document.getElementById("newVoterId").value.trim();
+    const name = document.getElementById("newVoterName").value.trim();
+    if (!id || !name) return toast("Enter both ID and name.", "warn");
+    if (voterList[id]) return toast("Voter ID already exists.", "warn");
+    voterList[id] = name;
+    document.getElementById("newVoterId").value = "";
+    document.getElementById("newVoterName").value = "";
+    refreshAdmin();
+    saveState();
+    toast(`${name} (${id}) added.`, "success");
+  }
+
+  function resetElection() {
+    if (!confirm("Reset all votes? This cannot be undone.")) return;
+    Object.keys(candidates).forEach(c => candidates[c] = 0);
+    voted.clear();
+    Object.keys(voteLog).forEach(k => delete voteLog[k]);
+    saveState();
+    refreshAdmin();
+    toast("All votes have been reset.", "warn");
+  }
+
+  function changePassword() {
+    const cur  = document.getElementById("curPass").value;
+    const np   = document.getElementById("newPass").value;
+    const conf = document.getElementById("confPass").value;
+    if (cur !== ADMIN_PASS)   return toast("Current password is incorrect.", "error");
+    if (!np)                  return toast("New password cannot be empty.", "warn");
+    if (np !== conf)          return toast("Passwords do not match.", "error");
+    ADMIN_PASS = np;
+    document.getElementById("curPass").value  = "";
+    document.getElementById("newPass").value  = "";
+    document.getElementById("confPass").value = "";
+    saveState();
+    toast("Password updated successfully.", "success");
+  }
+
+  // ── Toast ──────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type = "") {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = "", 3000);
+  }
+
+  // ── Init ───────────────────────────────────────────────
+  buildCandidateButtons();
+</script>
+</body>
+</html>
